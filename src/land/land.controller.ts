@@ -1,8 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { LandService } from './land.service';
 import { Land } from '../entities/region/land.entity';
-import { CreateLandDto } from './dto/creatLandDto';
-import { UpdateLandDto } from './dto/land.dto';
+import { CreateLandDto, UpdateLandDto } from './dto/creatLandDto';
 
 @Controller('land')
 export class LandController {
@@ -23,16 +22,16 @@ export class LandController {
     return this.landService.create(createLandDto);
   }
 
-  // @Put(':id')
-  // update(
-  //   @Param('id', ParseIntPipe) id: number,
-  //   @Body() updateLandDto: UpdateLandDto,
-  // ): Promise<Land> {
-  //   return this.landService.update(id, updateLandDto);
-  // }
+  @Put(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateLandDto: UpdateLandDto,
+  ): Promise<Land> {
+    return this.landService.update(id, updateLandDto);
+  }
 
-  // @Delete(':id')
-  // remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-  //   return this.landService.remove(id);
-  // }
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.landService.remove(id);
+  }
 }

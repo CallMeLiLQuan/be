@@ -7,8 +7,11 @@ import { CreateAssetDto, UpdateAssetDto } from './dto/asset.dto';
 export class AssetController {
   constructor(private readonly assetService: AssetService) {}
 
-  @Get('assets')
-  findAll(): Promise<Asset[]> {
+  @Get()
+  findAll(@Query('category') category?: string): Promise<Asset[]> {
+    if (category) {
+      return this.assetService.findByCategory(category);
+    }
     return this.assetService.findAll();
   }
 
@@ -22,7 +25,7 @@ export class AssetController {
     return this.assetService.findOne(id);
   }
 
-  @Post('create')
+  @Post()
   create(@Body() createAssetDto: CreateAssetDto): Promise<Asset> {
     return this.assetService.create(createAssetDto);
   }
@@ -38,13 +41,5 @@ export class AssetController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.assetService.remove(id);
-  }
-
-  @Get()
-  findByQueryCategory(@Query('category') category: string) {
-    if (category) {
-      return this.assetService.findByCategory(category);
-    }
-    return this.assetService.findAll();
   }
 }

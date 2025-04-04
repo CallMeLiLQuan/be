@@ -1,24 +1,23 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, IsBoolean, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class WateringSchedule {
+class PropertyDto {
   @IsString()
-  frequency: 'daily' | 'weekly' | 'monthly';
+  key: string;
 
-  @IsNumber()
-  amount: number;
-
-  @IsString()
-  description: string;
+  @IsOptional()
+  value: string | number | boolean;
 }
 
-class PlantInfo {
-  @IsNumber()
-  age: number;
+class PlantInfoDto {
+  @IsString()
+  growthStage: string;
 
-  @ValidateNested()
-  @Type(() => WateringSchedule)
-  wateringSchedule: WateringSchedule;
+  @IsDateString()
+  lastWatered: string;
+
+  @IsString()
+  fertilizerUsed: string;
 }
 
 export class CreateAssetDto {
@@ -33,7 +32,9 @@ export class CreateAssetDto {
 
   @IsOptional()
   @IsArray()
-  properties?: Record<string, any>[];
+  @ValidateNested({ each: true })
+  @Type(() => PropertyDto)
+  properties?: PropertyDto[];
 
   @IsOptional()
   @IsNumber()
@@ -45,37 +46,44 @@ export class CreateAssetDto {
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => PlantInfo)
-  plantInfo?: PlantInfo;
+  @Type(() => PlantInfoDto)
+  plantInfo?: PlantInfoDto;
 
+  @IsOptional()
   @IsString()
-  landName: string;
+  landName?: string;
 
+  @IsOptional()
   @IsString()
-  areaName: string;
+  areaName?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsDateString()
+  purchaseDate?: string;
+
+  @IsOptional()
+  @IsNumber()
+  value?: number;
+
+  @IsOptional()
+  @IsNumber()
+  assignedTo?: number;
 
   @IsOptional()
   @IsString()
   category?: string;
 }
 
-export class UpdateAssetDto extends CreateAssetDto {
-  @IsOptional()
-  name: string;
-
-  @IsOptional()
-  type: string;
-
-  @IsOptional()
-  quantity: number;
-
-  @IsOptional()
-  landName: string;
-
-  @IsOptional()
-  areaName: string;
-
-  @IsOptional()
-  @IsString()
-  category?: string;
-}
+export class UpdateAssetDto extends CreateAssetDto {}

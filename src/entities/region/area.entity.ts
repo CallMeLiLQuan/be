@@ -42,6 +42,7 @@ export class Area {
 
   @OneToOne(() => Coordinate, (coordinate) => coordinate.area, {
     cascade: true,
+    eager: true
   })
   @JoinColumn()
   coordinates: Coordinate;
@@ -53,4 +54,5 @@ export class Area {
   assets: Asset[];
   @OneToMany(() => Task, (task) => task.area)
   tasks: Task[];
+  landId: number;
 }

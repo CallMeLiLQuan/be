@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { AreaService } from './area.service';
 import { Area } from '../entities/region/area.entity';
 import { CreateAreaDto, UpdateAreaDto } from './dto/area.dto';
@@ -28,11 +28,22 @@ export class AreaController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateAreaDto: UpdateAreaDto,
   ): Promise<Area> {
-    return this.areaService.update(id, updateAreaDto);
+    try {
+      const updatedArea = await this.areaService.update(id, updateAreaDto);
+      return updatedArea;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      if (error.message === 'Invalid coordinate format') {
+        throw new BadRequestException('Invalid coordinate format provided');
+      }
+      throw new InternalServerErrorException('Error updating area');
+    }
   }
 
   @Delete(':id')

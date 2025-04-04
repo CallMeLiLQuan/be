@@ -50,3 +50,29 @@ export class CreateLandDto {
   @IsString()
   googleMapUrl?: string;
 }
+
+export class UpdateLandDto extends CreateLandDto {
+  @IsOptional()
+  override name: string;
+
+  @IsOptional()
+  override address: string;
+
+  @IsOptional()
+  override area: number;
+
+  @IsOptional()
+  override price: number;
+
+  @IsOptional()
+  override location: string;
+
+  @IsOptional()
+  override coordinate: CreateCoordinateDto;
+
+  @IsOptional()
+  override ownerId: number;
+
+  @IsOptional()
+  override regionId: number;
+}

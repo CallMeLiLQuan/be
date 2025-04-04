@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Land } from './land.entity';
 import { Area } from './area.entity';
 
 @Entity()
@@ -12,40 +13,57 @@ export class Asset {
   @Column()
   type: string;
 
-  @Column('int')
+  @Column({ default: 0 })
   quantity: number;
 
-  @Column({ type: 'json', nullable: true })
-  properties: Record<string, any>[];
+  @Column('json', { nullable: true })
+  properties: Array<{ key: string; value: string | number | boolean }>;
 
+  @Column('json', { nullable: true })
+  plantInfo: {
+    growthStage: string;
+    lastWatered: string;
+    fertilizerUsed: string;
+  };
+
+  @ManyToOne(() => Land, { nullable: true })
+  @JoinColumn({ name: 'landId' })
+  land: Land;
 
   @Column({ nullable: true })
   landId: number;
 
-  @Column({ nullable: true })
-  areaId: number;
-
-  @ManyToOne(() => Area, area => area.assets)
+  @ManyToOne(() => Area, { nullable: true })
   @JoinColumn({ name: 'areaId' })
   area: Area;
 
-  // Thông tin bổ sung cho tài sản là cây trồng
-  @Column({ type: 'json', nullable: true })
-  plantInfo?: {
-    age: number;
-    wateringSchedule: {
-      frequency: 'daily' | 'weekly' | 'monthly';
-      amount: number;
-      description: string;
-    };
-  };
+  @Column({ nullable: true })
+  areaId: number;
 
-  @Column()
+  @Column({ nullable: true })
   landName: string;
 
-  @Column()
+  @Column({ nullable: true })
   areaName: string;
 
-  @Column({ type: 'varchar', default: 'other', length: 50 })
+  @Column({ nullable: true })
+  status: string;
+
+  @Column({ nullable: true })
+  location: string;
+
+  @Column({ nullable: true })
+  description: string;
+
+  @Column({ nullable: true })
+  purchaseDate: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  value: number;
+
+  @Column({ nullable: true })
+  assignedTo: number;
+
+  @Column({ default: 'other' })
   category: string;
 } 
