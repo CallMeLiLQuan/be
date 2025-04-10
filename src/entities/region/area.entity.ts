@@ -12,6 +12,7 @@ import { Asset } from './asset.entity';
 import { Coordinate } from './coordinate.entity';
 import { Employee } from '../employee/employee.entity';
 import { Task } from '../task/task.entity';
+import { AreaClassification } from '../../area/enums/area-classification.enum';
 
 @Entity()
 export class Area {
@@ -36,6 +37,13 @@ export class Area {
   @Column()
   usage: string;
 
+  @Column({
+    type: 'enum',
+    enum: AreaClassification,
+    default: AreaClassification.OTHER
+  })
+  classification: AreaClassification;
+
   @ManyToOne(() => Land, (land) => land.areas)
   @JoinColumn()
   land: Land;
@@ -52,7 +60,9 @@ export class Area {
 
   @OneToMany(() => Asset, (asset) => asset.area)
   assets: Asset[];
+
   @OneToMany(() => Task, (task) => task.area)
   tasks: Task[];
+
   landId: number;
 }

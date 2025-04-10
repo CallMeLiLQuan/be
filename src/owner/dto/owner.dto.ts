@@ -10,8 +10,9 @@ export class CreateOwnerDto {
   @IsString()
   address: string;
 
+  @IsOptional()
   @IsNumber()
-  landCount: number;
+  landCount?: number = 0;
 
   @IsOptional()
   @IsArray()
@@ -27,7 +28,4 @@ export class UpdateOwnerDto extends CreateOwnerDto {
 
   @IsOptional()
   address: string;
-
-  @IsOptional()
-  landCount: number;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, Patch } from '@nestjs/common';
 import { OwnerService } from './owner.service';
 import { Owner } from '../entities/region/owner.entity';
 import { CreateOwnerDto, UpdateOwnerDto } from './dto/owner.dto';
@@ -33,5 +33,10 @@ export class OwnerController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.ownerService.remove(id);
+  }
+
+  @Patch(':id/refresh-land-count')
+  refreshLandCount(@Param('id', ParseIntPipe) id: number): Promise<Owner> {
+    return this.ownerService.refreshLandCount(id);
   }
 }

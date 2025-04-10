@@ -29,18 +29,40 @@ export class OwnerService {
   }
 
   async create(createOwnerDto: CreateOwnerDto): Promise<Owner> {
-    const owner = this.ownerRepository.create(createOwnerDto);
+    const owner = this.ownerRepository.create({
+      ...createOwnerDto,
+      landCount: 0
+    });
     return await this.ownerRepository.save(owner);
   }
 
   async update(id: number, updateOwnerDto: UpdateOwnerDto): Promise<Owner> {
     const owner = await this.findOne(id);
-    Object.assign(owner, updateOwnerDto);
+    
+    const currentLandCount = owner.lands ? owner.lands.length : 0;
+    
+    Object.assign(owner, {
+      ...updateOwnerDto,
+      landCount: currentLandCount
+    });
+    
     return await this.ownerRepository.save(owner);
   }
 
   async remove(id: number): Promise<void> {
     const owner = await this.findOne(id);
     await this.ownerRepository.remove(owner);
+  }
+  
+  async refreshLandCount(id: number): Promise<Owner> {
+    const owner = await this.findOne(id);
+    const actualLandCount = owner.lands ? owner.lands.length : 0;
+    
+    if (owner.landCount !== actualLandCount) {
+      owner.landCount = actualLandCount;
+      return await this.ownerRepository.save(owner);
+    }
+    
+    return owner;
   }
 }

@@ -3,8 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Area } from '../entities/region/area.entity';
 import { CreateAreaDto, UpdateAreaDto } from './dto/area.dto';
-import { Coordinate } from '../entities/region/coordinate.entity';
+import { Coordinate, Point } from '../entities/region/coordinate.entity';
 import { Land } from '../entities/region/land.entity';
+import { AreaClassification } from './enums/area-classification.enum';
 
 @Injectable()
 export class AreaService {
@@ -18,44 +19,19 @@ export class AreaService {
   ) {}
 
   async findAll(): Promise<Area[]> {
-    const areas = await this.areaRepository.find({
-      relations: ['land', 'coordinates', 'employees', 'assets']
-    });
-
-    // Parse stored JSON strings back to objects for each area
-    return areas.map(area => {
-      if (area.coordinates) {
-        try {
-          const coordinates = area.coordinates;
-          coordinates.polygon = coordinates.polygon || [];
-          coordinates.center = coordinates.center || { lat: 0, lng: 0 };
-        } catch (error) {
-          console.error('Error parsing coordinates for area', area.id, ':', error);
-        }
-      }
-      return area;
+    return await this.areaRepository.find({
+      relations: ['land', 'coordinates', 'employees', 'tasks']
     });
   }
 
   async findOne(id: number): Promise<Area> {
     const area = await this.areaRepository.findOne({
       where: { id },
-      relations: ['land', 'coordinates', 'employees', 'assets']
+      relations: ['land', 'coordinates', 'employees', 'tasks']
     });
     
     if (!area) {
       throw new NotFoundException(`Area with ID ${id} not found`);
-    }
-
-    // Parse stored JSON strings back to objects
-    if (area.coordinates) {
-      try {
-        const coordinates = area.coordinates;
-        coordinates.polygon = coordinates.polygon || [];
-        coordinates.center = coordinates.center || { lat: 0, lng: 0 };
-      } catch (error) {
-        console.error('Error parsing coordinates:', error);
-      }
     }
     
     return area;
@@ -64,150 +40,104 @@ export class AreaService {
   async findByLand(landId: number): Promise<Area[]> {
     return await this.areaRepository.find({
       where: { land: { id: landId } },
-      relations: ['land', 'coordinates', 'employees', 'assets']
+      relations: ['land', 'coordinates', 'employees', 'tasks']
     });
   }
 
   async create(createAreaDto: CreateAreaDto): Promise<Area> {
-    const { coordinates: coordinatesDto, landId, ...areaData } = createAreaDto;
-
-    // Find the land
-    const land = await this.landRepository.findOne({ 
-      where: { id: landId },
-      relations: ['coordinate'] 
-    });
-    if (!land) {
-      throw new NotFoundException(`Land with ID ${landId} not found`);
-    }
-
-    // Create coordinates using land's coordinates as default if not provided
-    let coordinates = new Coordinate();
-    if (coordinatesDto) {
-      try {
-        // Parse JSON strings if they are strings
-        const polygon = typeof coordinatesDto.polygon === 'string' 
-          ? JSON.parse(coordinatesDto.polygon)
-          : coordinatesDto.polygon;
-
-        const center = typeof coordinatesDto.center === 'string'
-          ? JSON.parse(coordinatesDto.center)
-          : coordinatesDto.center;
-
-        // Validate polygon data
-        if (!Array.isArray(polygon)) {
-          throw new Error('Polygon must be an array of coordinates');
-        }
-
-        coordinates.polygon = polygon;
-        coordinates.center = center;
-        coordinates.zoom = coordinatesDto.zoom || 15;
-      } catch (error) {
-        console.error('Error processing coordinates:', error);
-        throw new Error('Invalid coordinate format');
+    try {
+      // Find land
+      const land = await this.landRepository.findOne({
+        where: { id: createAreaDto.landId }
+      });
+      if (!land) {
+        throw new NotFoundException(`Land with ID ${createAreaDto.landId} not found`);
       }
-    } else if (land.coordinate) {
-      // Use land's coordinates as default
-      coordinates.polygon = land.coordinate.polygon;
-      coordinates.center = land.coordinate.center;
-      coordinates.zoom = land.coordinate.zoom;
-    } else {
-      // Set default coordinates if neither provided nor available from land
-      coordinates.polygon = [[21.0235276, 105.8420103]];
-      coordinates.center = { lat: 21.0235276, lng: 105.8420103 };
-      coordinates.zoom = 15;
+
+      // Create coordinate
+      const coordinate = new Coordinate();
+      coordinate.polygon = typeof createAreaDto.coordinates.polygon === 'string' 
+        ? JSON.parse(createAreaDto.coordinates.polygon) as [number, number][]
+        : createAreaDto.coordinates.polygon;
+      coordinate.center = typeof createAreaDto.coordinates.center === 'string'
+        ? JSON.parse(createAreaDto.coordinates.center) as Point
+        : createAreaDto.coordinates.center;
+      coordinate.zoom = createAreaDto.coordinates.zoom;
+      
+      const savedCoordinate = await this.coordinateRepository.save(coordinate);
+
+      // Create area
+      const area = new Area();
+      area.name = createAreaDto.name;
+      area.areaName = createAreaDto.areaName;
+      area.landPlot = createAreaDto.landPlot;
+      area.status = createAreaDto.status;
+      area.area = createAreaDto.area;
+      area.usage = createAreaDto.usage;
+      area.classification = createAreaDto.classification as AreaClassification;
+      area.coordinates = savedCoordinate;
+      area.land = land;
+      area.employees = [];
+      area.tasks = [];
+
+      const savedArea = await this.areaRepository.save(area);
+      
+      // Update land's areaCount
+      land.areaCount = (land.areaCount || 0) + 1;
+      await this.landRepository.save(land);
+
+      return savedArea;
+    } catch (error) {
+      // If there's an error, clean up the coordinate if it was created
+      if (error.coordinates?.id) {
+        await this.coordinateRepository.remove(error.coordinates);
+      }
+      console.error('Error creating area:', error);
+      throw error;
     }
-
-    // Save coordinates first
-    const savedCoordinates = await this.coordinateRepository.save(coordinates);
-
-    // Create and save area
-    const area = this.areaRepository.create({
-      ...areaData,
-      land,
-      coordinates: savedCoordinates
-    });
-
-    const savedArea = await this.areaRepository.save(area);
-    console.log('Saved area with coordinates:', JSON.stringify(savedArea, null, 2));
-    
-    return savedArea;
   }
 
   async update(id: number, updateAreaDto: UpdateAreaDto): Promise<Area> {
-    const { coordinates: coordinatesDto, landId, ...areaData } = updateAreaDto;
-    
-    // Find existing area
-    const existingArea = await this.areaRepository.findOne({
-      where: { id },
-      relations: ['land', 'coordinates']
-    });
+    const area = await this.findOne(id);
 
-    if (!existingArea) {
-      throw new NotFoundException(`Area with ID ${id} not found`);
-    }
-
-    // Update land if landId is provided
-    if (landId) {
-      const land = await this.landRepository.findOne({ 
-        where: { id: landId },
-        relations: ['coordinate'] 
-      });
-      if (!land) {
-        throw new NotFoundException(`Land with ID ${landId} not found`);
-      }
-      existingArea.land = land;
-    }
-
-    // Update coordinates if provided
-    if (coordinatesDto) {
-      try {
-        // Parse JSON strings if they are strings
-        const polygon = typeof coordinatesDto.polygon === 'string' 
-          ? JSON.parse(coordinatesDto.polygon)
-          : coordinatesDto.polygon;
-
-        const center = typeof coordinatesDto.center === 'string'
-          ? JSON.parse(coordinatesDto.center)
-          : coordinatesDto.center;
-
-        // Validate polygon data
-        if (!Array.isArray(polygon)) {
-          throw new Error('Polygon must be an array of coordinates');
-        }
-
-        // Update existing coordinates
-        if (existingArea.coordinates) {
-          existingArea.coordinates.polygon = polygon;
-          existingArea.coordinates.center = center;
-          existingArea.coordinates.zoom = coordinatesDto.zoom || existingArea.coordinates.zoom;
-          await this.coordinateRepository.save(existingArea.coordinates);
-        } else {
-          // Create new coordinates if none exist
-          const coordinates = new Coordinate();
-          coordinates.polygon = polygon;
-          coordinates.center = center;
-          coordinates.zoom = coordinatesDto.zoom || 15;
-          const savedCoordinates = await this.coordinateRepository.save(coordinates);
-          existingArea.coordinates = savedCoordinates;
-        }
-      } catch (error) {
-        console.error('Error processing coordinates:', error);
-        throw new Error('Invalid coordinate format');
+    if (updateAreaDto.coordinates) {
+      const coordinates = area.coordinates;
+      if (coordinates) {
+        coordinates.polygon = typeof updateAreaDto.coordinates.polygon === 'string'
+          ? JSON.parse(updateAreaDto.coordinates.polygon) as [number, number][]
+          : updateAreaDto.coordinates.polygon;
+        coordinates.center = typeof updateAreaDto.coordinates.center === 'string'
+          ? JSON.parse(updateAreaDto.coordinates.center) as Point
+          : updateAreaDto.coordinates.center;
+        coordinates.zoom = updateAreaDto.coordinates.zoom;
+        
+        await this.coordinateRepository.save(coordinates);
       }
     }
 
-    // Update other area data
-    Object.assign(existingArea, areaData);
+    if (updateAreaDto.name) area.name = updateAreaDto.name;
+    if (updateAreaDto.areaName) area.areaName = updateAreaDto.areaName;
+    if (updateAreaDto.landPlot) area.landPlot = updateAreaDto.landPlot;
+    if (updateAreaDto.status) area.status = updateAreaDto.status;
+    if (updateAreaDto.area) area.area = updateAreaDto.area;
+    if (updateAreaDto.usage) area.usage = updateAreaDto.usage;
+    if (updateAreaDto.classification) {
+      area.classification = updateAreaDto.classification as AreaClassification;
+    }
 
-    // Save and return updated area
-    const savedArea = await this.areaRepository.save(existingArea);
-    console.log('Updated area with coordinates:', JSON.stringify(savedArea, null, 2));
-    
-    return savedArea;
+    return await this.areaRepository.save(area);
   }
 
   async remove(id: number): Promise<void> {
     const area = await this.findOne(id);
+    const land = area.land;
+
     await this.areaRepository.remove(area);
+
+    // Update land's areaCount
+    if (land) {
+      land.areaCount = Math.max(0, (land.areaCount || 1) - 1);
+      await this.landRepository.save(land);
+    }
   }
 }

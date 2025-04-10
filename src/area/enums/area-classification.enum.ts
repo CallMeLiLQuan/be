@@ -1,6 +1,6 @@
 export enum AreaClassification {
-  PLANT = 'plant',
-  OTHER = 'other',
+  PLANT = 'PLANT',
+  OTHER = 'OTHER',
   RESIDENTIAL = 'residential',
   COMMERCIAL = 'commercial',
   INDUSTRIAL = 'industrial',
